@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: robot-controller
+  name: robot-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: robot-controller
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: robot-controller
+    spec:
+      containers:
+      - image: <Docker Image here>
+        imagePullPolicy: Always
+        name: nginx
+        ports:
+        - containerPort: 80
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: robot-controller-ingress
+  annotations:
+    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
+spec:
+  rules:
+  - host: <Hostname here>
+    http:
+      paths:
+      - backend:
+          service:
+            name: robot-controller
+            port:
+              number: 80
+        pathType: Prefix
+        path: /
+  tls:
+  - hosts:
+    - <Hostname here>
+    secretName: ingress-crt
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: web-crt
+spec:
+  dnsNames:
+    - ollama.redactedwork.net
+  issuerRef:
+    kind: ClusterIssuer
+    name: dickey-cloud-issuer
+  secretName: ingress-crt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: robot-controller
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: robot-controller
+  type: ClusterIP
